@@ -35,31 +35,31 @@ class Sidebar extends Template
      */
     protected $_categoryFactory;
 
-    /** @var \Magento\Catalog\Model\ResourceModel\Product\Collection */
+    /** @var Product\Collection */
     protected $_productCollectionFactory;
 
     /** @var \Magento\Catalog\Helper\Output */
     private $helper;
 
     /**
-     * @param Template\Context                                        $context
-     * @param \Magento\Catalog\Helper\Category                        $categoryHelper
-     * @param \Magento\Framework\Registry                             $registry
-     * @param \Magento\Catalog\Model\Indexer\Category\Flat\State      $categoryFlatState
-     * @param \Magento\Catalog\Model\CategoryFactory                  $categoryFactory
-     * @param \Magento\Framework\App\Config\ScopeConfigInterface      $scopeConfig
-     * @param \Magento\Catalog\Model\ResourceModel\Product\Collection $productCollectionFactory
-     * @param \Magento\Framework\App\ObjectManager                    $objectManager
+     * @param Template\Context $context
+     * @param \Magento\Catalog\Helper\Category $categoryHelper
+     * @param \Magento\Framework\Registry $registry
+     * @param \Magento\Catalog\Model\Indexer\Category\Flat\State $categoryFlatState
+     * @param \Magento\Catalog\Model\CategoryFactory $categoryFactory
+     * @param Product\Collection $productCollectionFactory
+     * @param \Magento\Catalog\Helper\Output $helper
+     * @param array $data
      *
      * @internal param array $data
      */
     public function __construct(
-        \Magento\Framework\View\Element\Template\Context $context,
+        Template\Context $context,
         \Magento\Catalog\Helper\Category $categoryHelper,
         \Magento\Framework\Registry $registry,
         \Magento\Catalog\Model\Indexer\Category\Flat\State $categoryFlatState,
         \Magento\Catalog\Model\CategoryFactory $categoryFactory,
-        \Magento\Catalog\Model\ResourceModel\Product\Collection $productCollectionFactory,
+        Product\Collection $productCollectionFactory,
         \Magento\Catalog\Helper\Output $helper,
         $data = [ ]
     )
@@ -82,13 +82,13 @@ class Sidebar extends Template
     /**
      * Get all categories
      *
+     * @param int $recursionLevel
      * @param bool $sorted
      * @param bool $asCollection
      * @param bool $toLoad
-     *
      * @return array|\Magento\Catalog\Model\ResourceModel\Category\Collection|\Magento\Framework\Data\Tree\Node\Collection
      */
-    public function getCategories($sorted = false, $asCollection = false, $toLoad = true)
+    public function getCategories($recursionLevel = 1, $sorted = false, $asCollection = false, $toLoad = true)
     {
         $cacheKey = sprintf('%d-%d-%d-%d', $this->getSelectedRootCategory(), $sorted, $asCollection, $toLoad);
         if ( isset($this->_storeCategories[ $cacheKey ]) )
@@ -101,7 +101,7 @@ class Sidebar extends Template
          */
         $category = $this->_categoryFactory->create();
 
-        $storeCategories = $category->getCategories($this->getSelectedRootCategory(), $recursionLevel = 1, $sorted, $asCollection, $toLoad);
+        $storeCategories = $category->getCategories($this->getSelectedRootCategory(), $recursionLevel, $sorted, $asCollection, $toLoad);
 
         $this->_storeCategories[ $cacheKey ] = $storeCategories;
 
