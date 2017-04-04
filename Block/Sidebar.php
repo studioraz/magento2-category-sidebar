@@ -206,8 +206,8 @@ class Sidebar extends Template
         }
 
         // Check if a subcategory of this category is active
-        $childrenIds = $category->getAllChildren(true);
-        if (!is_null($childrenIds) AND in_array($activeCategory->getId(), $childrenIds)) {
+        $activeCategoryTree = explode('/', $activeCategory->getPath());
+        if (in_array($category->getId(), $activeCategoryTree)) {
             return true;
         }
 
