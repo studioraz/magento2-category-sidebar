@@ -16,6 +16,11 @@ use Magento\Framework\View\Element\Template;
  */
 class Sidebar extends Template
 {
+    /**
+     * System configuration options
+     */
+    const XML_PATH_SIDEBAR_CATEGORY = 'sebwite_sidebar/general/category';
+    const XML_PATH_VISIBLE_IN_MENU  = 'sebwite_sidebar/general/visible_in_menu';
 
     /**
      * @var \Magento\Catalog\Helper\Category
@@ -128,6 +133,11 @@ class Sidebar extends Template
             ->addAttributeToSelect('name')
             ->addIsActiveFilter();
 
+        $visibleInMenu = $this->_scopeConfig->getValue(self::XML_PATH_VISIBLE_IN_MENU);
+        if ($visibleInMenu) {
+            $collection->addAttributeToFilter('include_in_menu', true);
+        }
+
         $attributes = $this->attributeConfig->getAttributeNames('catalog_category');
         $collection->addAttributeToSelect($attributes);
 
@@ -150,7 +160,7 @@ class Sidebar extends Template
      */
     public function getSelectedRootCategory()
     {
-        $category = $this->_scopeConfig->getValue('sebwite_sidebar/general/category');
+        $category = $this->_scopeConfig->getValue(self::XML_PATH_SIDEBAR_CATEGORY);
 
         if ($category === null) {
             return 1;

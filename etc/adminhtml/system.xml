@@ -12,10 +12,15 @@
             <group id="general" translate="label" type="text" sortOrder="10" showInDefault="1" showInWebsite="0"
                    showInStore="0">
                 <label>Sidebar settings</label>
-                <field id="category" translate="label" type="select" sortOrder="1" showInDefault="1" showInWebsite="0"
+                <field id="category" translate="label" type="select" sortOrder="8" showInDefault="1" showInWebsite="0"
                        showInStore="0">
                     <label>Select Sidebar Category</label>
                     <source_model>Sebwite\Sidebar\Model\Config\Source\Categories</source_model>
+                </field>
+                <field id="visible_in_menu" translate="label" type="select" sortOrder="16" showInDefault="1"
+                       showInWebsite="0" showInStore="0">
+                    <label>Show only visible in menu</label>
+                    <source_model>Magento\Config\Model\Config\Source\Yesno</source_model>
                 </field>
             </group>
         </section>
