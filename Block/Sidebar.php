@@ -16,6 +16,11 @@ use Magento\Framework\View\Element\Template;
  */
 class Sidebar extends Template
 {
+    /**
+     * System configuration options
+     */
+    const XML_PATH_SIDEBAR_CATEGORY = 'sebwite_sidebar/general/category';
+    const XML_PATH_VISIBLE_IN_MENU  = 'sebwite_sidebar/general/visible_in_menu';
 
     /**
      * @var \Magento\Catalog\Helper\Category
@@ -33,9 +38,9 @@ class Sidebar extends Template
     protected $categoryFlatConfig;
 
     /**
-     * @var \Magento\Catalog\Model\CategoryFactory
+     * @var \Magento\Catalog\Model\ResourceModel\Category\CollectionFactory
      */
-    protected $_categoryFactory;
+    protected $categoryCollectionFactory;
 
     /**
      * @var array
@@ -43,11 +48,24 @@ class Sidebar extends Template
     protected $_storeCategories = [];
 
     /**
+     * @var \Magento\Catalog\Model\ResourceModel\Category\TreeFactory
+     */
+    private $categoryTreeFactory;
+
+    /**
+     * @var \Magento\Catalog\Model\Attribute\Config
+     */
+    private $attributeConfig;
+
+    /**
+     * Sidebar constructor.
      * @param Template\Context $context
      * @param \Magento\Catalog\Helper\Category $categoryHelper
      * @param \Magento\Framework\Registry $registry
      * @param \Magento\Catalog\Model\Indexer\Category\Flat\State $categoryFlatState
-     * @param \Magento\Catalog\Model\CategoryFactory $categoryFactory
+     * @param \Magento\Catalog\Model\Attribute\Config $attributeConfig
+     * @param \Magento\Catalog\Model\ResourceModel\Category\TreeFactory $categoryTreeFactory
+     * @param \Magento\Catalog\Model\ResourceModel\Category\CollectionFactory $categoryCollectionFactory
      * @param array $data
      */
     public function __construct(
@@ -55,13 +73,17 @@ class Sidebar extends Template
         \Magento\Catalog\Helper\Category $categoryHelper,
         \Magento\Framework\Registry $registry,
         \Magento\Catalog\Model\Indexer\Category\Flat\State $categoryFlatState,
-        \Magento\Catalog\Model\CategoryFactory $categoryFactory,
+        \Magento\Catalog\Model\Attribute\Config $attributeConfig,
+        \Magento\Catalog\Model\ResourceModel\Category\TreeFactory $categoryTreeFactory,
+        \Magento\Catalog\Model\ResourceModel\Category\CollectionFactory $categoryCollectionFactory,
         $data = [ ]
     ) {
-        $this->_categoryHelper    = $categoryHelper;
-        $this->_coreRegistry      = $registry;
-        $this->categoryFlatConfig = $categoryFlatState;
-        $this->_categoryFactory   = $categoryFactory;
+        $this->_categoryHelper           = $categoryHelper;
+        $this->_coreRegistry             = $registry;
+        $this->categoryFlatConfig        = $categoryFlatState;
+        $this->categoryTreeFactory       = $categoryTreeFactory;
+        $this->categoryCollectionFactory = $categoryCollectionFactory;
+        $this->attributeConfig           = $attributeConfig;
 
         parent::__construct($context, $data);
     }
@@ -87,16 +109,48 @@ class Sidebar extends Template
             return $this->_storeCategories[ $cacheKey ];
         }
 
-        /**
-         * Check if parent node of the store still exists
-         */
-        $category = $this->_categoryFactory->create();
-
-        $storeCategories = $category->getCategories($this->getSelectedRootCategory(), $recursionLevel, $sorted, $asCollection, $toLoad);
+        $storeCategories = $this->getCategoryTreeByParent($recursionLevel, $sorted, $asCollection, $toLoad);
 
         $this->_storeCategories[ $cacheKey ] = $storeCategories;
 
         return $storeCategories;
+    }
+
+    /**
+     * Custom tree caretion to omit 'include_in_menu' filtering
+     *
+     * @param int $recursionLevel
+     * @param bool $sorted
+     * @param bool $asCollection
+     * @param bool $toLoad
+     * @return CategoryCollection|TreeNodeCollection
+     */
+    protected function getCategoryTreeByParent($recursionLevel, $sorted, $asCollection, $toLoad)
+    {
+        $collection = $this->categoryCollectionFactory->create();
+        $collection
+            ->setStoreId($this->_storeManager->getStore()->getId())
+            ->addAttributeToSelect('name')
+            ->addIsActiveFilter();
+
+        $visibleInMenu = $this->_scopeConfig->getValue(self::XML_PATH_VISIBLE_IN_MENU);
+        if ($visibleInMenu) {
+            $collection->addAttributeToFilter('include_in_menu', true);
+        }
+
+        $attributes = $this->attributeConfig->getAttributeNames('catalog_category');
+        $collection->addAttributeToSelect($attributes);
+
+        $tree  = $this->categoryTreeFactory->create();
+        $nodes = $tree->loadNode($this->getSelectedRootCategory())->loadChildren($recursionLevel)->getChildren();
+
+        $tree->addCollectionData($collection, $sorted, [], $toLoad, false);
+
+        if ($asCollection) {
+            return $tree->getCollection();
+        }
+
+        return $nodes;
     }
 
     /**
@@ -106,7 +160,7 @@ class Sidebar extends Template
      */
     public function getSelectedRootCategory()
     {
-        $category = $this->_scopeConfig->getValue('sebwite_sidebar/general/category');
+        $category = $this->_scopeConfig->getValue(self::XML_PATH_SIDEBAR_CATEGORY);
 
         if ($category === null) {
             return 1;
