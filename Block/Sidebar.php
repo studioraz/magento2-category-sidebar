@@ -19,8 +19,7 @@ class Sidebar extends Template
     /**
      * System configuration options
      */
-    const XML_PATH_SIDEBAR_CATEGORY = 'sebwite_sidebar/general/category';
-    const XML_PATH_VISIBLE_IN_MENU  = 'sebwite_sidebar/general/visible_in_menu';
+    const XML_PATH_VISIBLE_IN_MENU = 'sebwite_sidebar/general/visible_in_menu';
 
     /**
      * @var \Magento\Catalog\Helper\Category
@@ -57,16 +56,19 @@ class Sidebar extends Template
      */
     private $attributeConfig;
 
+    /** @var \Magento\Store\Model\Store */
+    protected $_store;
+
     /**
      * Sidebar constructor.
-     * @param Template\Context $context
-     * @param \Magento\Catalog\Helper\Category $categoryHelper
-     * @param \Magento\Framework\Registry $registry
-     * @param \Magento\Catalog\Model\Indexer\Category\Flat\State $categoryFlatState
-     * @param \Magento\Catalog\Model\Attribute\Config $attributeConfig
-     * @param \Magento\Catalog\Model\ResourceModel\Category\TreeFactory $categoryTreeFactory
+     * @param Template\Context                                                $context
+     * @param \Magento\Catalog\Helper\Category                                $categoryHelper
+     * @param \Magento\Framework\Registry                                     $registry
+     * @param \Magento\Catalog\Model\Indexer\Category\Flat\State              $categoryFlatState
+     * @param \Magento\Catalog\Model\Attribute\Config                         $attributeConfig
+     * @param \Magento\Catalog\Model\ResourceModel\Category\TreeFactory       $categoryTreeFactory
      * @param \Magento\Catalog\Model\ResourceModel\Category\CollectionFactory $categoryCollectionFactory
-     * @param array $data
+     * @param array                                                           $data
      */
     public function __construct(
         Template\Context $context,
@@ -76,14 +78,17 @@ class Sidebar extends Template
         \Magento\Catalog\Model\Attribute\Config $attributeConfig,
         \Magento\Catalog\Model\ResourceModel\Category\TreeFactory $categoryTreeFactory,
         \Magento\Catalog\Model\ResourceModel\Category\CollectionFactory $categoryCollectionFactory,
-        $data = [ ]
-    ) {
-        $this->_categoryHelper           = $categoryHelper;
-        $this->_coreRegistry             = $registry;
-        $this->categoryFlatConfig        = $categoryFlatState;
-        $this->categoryTreeFactory       = $categoryTreeFactory;
+        \Magento\Store\Model\Store $store,
+        $data = []
+    )
+    {
+        $this->_categoryHelper = $categoryHelper;
+        $this->_coreRegistry = $registry;
+        $this->categoryFlatConfig = $categoryFlatState;
+        $this->categoryTreeFactory = $categoryTreeFactory;
         $this->categoryCollectionFactory = $categoryCollectionFactory;
-        $this->attributeConfig           = $attributeConfig;
+        $this->attributeConfig = $attributeConfig;
+        $this->_store = $store;
 
         parent::__construct($context, $data);
     }
@@ -96,7 +101,7 @@ class Sidebar extends Template
     /**
      * Get all categories
      *
-     * @param int $recursionLevel
+     * @param int  $recursionLevel
      * @param bool $sorted
      * @param bool $asCollection
      * @param bool $toLoad
@@ -104,14 +109,17 @@ class Sidebar extends Template
      */
     public function getCategories($recursionLevel = 1, $sorted = false, $asCollection = false, $toLoad = true)
     {
+        $activeCategory = $this->_coreRegistry->registry('current_category');
+        $recursionLevel = ($activeCategory->getLevel()+1);
+
         $cacheKey = sprintf('%d-%d-%d-%d', $this->getSelectedRootCategory(), $sorted, $asCollection, $toLoad);
-        if (isset($this->_storeCategories[ $cacheKey ])) {
-            return $this->_storeCategories[ $cacheKey ];
+        if (isset($this->_storeCategories[$cacheKey])) {
+            return $this->_storeCategories[$cacheKey];
         }
 
         $storeCategories = $this->getCategoryTreeByParent($recursionLevel, $sorted, $asCollection, $toLoad);
 
-        $this->_storeCategories[ $cacheKey ] = $storeCategories;
+        $this->_storeCategories[$cacheKey] = $storeCategories;
 
         return $storeCategories;
     }
@@ -119,7 +127,7 @@ class Sidebar extends Template
     /**
      * Custom tree caretion to omit 'include_in_menu' filtering
      *
-     * @param int $recursionLevel
+     * @param int  $recursionLevel
      * @param bool $sorted
      * @param bool $asCollection
      * @param bool $toLoad
@@ -127,6 +135,8 @@ class Sidebar extends Template
      */
     protected function getCategoryTreeByParent($recursionLevel, $sorted, $asCollection, $toLoad)
     {
+        //todo calculate recursionLevel (should be the level of current category  + 1 )
+
         $collection = $this->categoryCollectionFactory->create();
         $collection
             ->setStoreId($this->_storeManager->getStore()->getId())
@@ -141,7 +151,7 @@ class Sidebar extends Template
         $attributes = $this->attributeConfig->getAttributeNames('catalog_category');
         $collection->addAttributeToSelect($attributes);
 
-        $tree  = $this->categoryTreeFactory->create();
+        $tree = $this->categoryTreeFactory->create();
         $nodes = $tree->loadNode($this->getSelectedRootCategory())->loadChildren($recursionLevel)->getChildren();
 
         $tree->addCollectionData($collection, $sorted, [], $toLoad, false);
@@ -160,13 +170,17 @@ class Sidebar extends Template
      */
     public function getSelectedRootCategory()
     {
-        $category = $this->_scopeConfig->getValue(self::XML_PATH_SIDEBAR_CATEGORY);
+        $activeCategory = $this->_coreRegistry->registry('current_category');
 
-        if ($category === null) {
-            return 1;
+        if (!empty($activeCategory)) {
+            foreach ($this->getParentCategories($activeCategory) as $parent) {
+                if ($parent->getLevel() == 2) {
+                    return $parent->getId();
+                }
+            }
         }
 
-        return $category;
+        return $this->_store->getStoreRootCategoryId();
     }
 
     /**
@@ -191,7 +205,7 @@ class Sidebar extends Template
                 foreach ($childCategories as $childCategory) {
 
                     $html .= '<li class="level' . $level . ($this->isActive($childCategory) ? ' active' : '') . '">';
-                    $html .= '<a href="' . $this->getCategoryUrl($childCategory) . '" title="' . $childCategory->getName() . '" class="' . ($this->isActive($childCategory) ? 'is-active' : '') . '">' . $childCategory->getName() . '</a>';
+                    $html .= '<a href="' . $this->getCategoryUrl($childCategory) . '" title="' . $childCategory->getName() . '" class="' . ($this->isActive($childCategory) ? 'active' : '') . '">' . $childCategory->getName() . '</a>';
 
                     if ($childCategory->hasChildren()) {
                         if ($this->isActive($childCategory)) {
@@ -240,7 +254,7 @@ class Sidebar extends Template
     public function isActive($category)
     {
         $activeCategory = $this->_coreRegistry->registry('current_category');
-        $activeProduct  = $this->_coreRegistry->registry('current_product');
+        $activeProduct = $this->_coreRegistry->registry('current_product');
 
         if (!$activeCategory) {
 
@@ -279,5 +293,28 @@ class Sidebar extends Template
     public function getCategoryUrl($category)
     {
         return $this->_categoryHelper->getCategoryUrl($category);
+    }
+
+
+    /**
+     * @param $category
+     * @return \Magento\Framework\DataObject[]
+     * @throws \Magento\Framework\Exception\LocalizedException
+     */
+    public function getParentCategories($category)
+    {
+        $pathIds = array_reverse(explode(',', $category->getPathInStore()));
+        /** @var \Magento\Catalog\Model\ResourceModel\Category\Collection $categories */
+        $categories = $this->categoryCollectionFactory->create();
+
+        return $categories
+            ->setStore(
+                $this->_storeManager->getStore()
+            )
+            ->addAttributeToSelect('entity_id','name', 'level')
+            ->addFieldToFilter('entity_id', ['in' => $pathIds])
+            ->addFieldToFilter('is_active', 1)
+            ->load()
+            ->getItems();
     }
 }
