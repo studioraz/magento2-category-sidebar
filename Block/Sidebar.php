@@ -101,13 +101,12 @@ class Sidebar extends Template
     /**
      * Get all categories
      *
-     * @param int  $recursionLevel
      * @param bool $sorted
      * @param bool $asCollection
      * @param bool $toLoad
      * @return array|CategoryCollection|TreeNodeCollection
      */
-    public function getCategories($recursionLevel = 1, $sorted = false, $asCollection = false, $toLoad = true)
+    public function getCategories($sorted = false, $asCollection = false, $toLoad = true)
     {
         $activeCategory = $this->_coreRegistry->registry('current_category');
         $recursionLevel = ($activeCategory->getLevel()+1);
@@ -135,8 +134,6 @@ class Sidebar extends Template
      */
     protected function getCategoryTreeByParent($recursionLevel, $sorted, $asCollection, $toLoad)
     {
-        //todo calculate recursionLevel (should be the level of current category  + 1 )
-
         $collection = $this->categoryCollectionFactory->create();
         $collection
             ->setStoreId($this->_storeManager->getStore()->getId())
@@ -316,5 +313,15 @@ class Sidebar extends Template
             ->addFieldToFilter('is_active', 1)
             ->load()
             ->getItems();
+    }
+
+    /**
+     * @return bool
+     */
+    public function canDisplay()
+    {
+        $activeCategory = $this->_coreRegistry->registry('current_category');
+
+        return (!empty($activeCategory) && $activeCategory->getId());
     }
 }

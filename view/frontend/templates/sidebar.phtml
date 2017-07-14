@@ -4,8 +4,11 @@
  *
  * @var $block Sebwite\Sidebar\Block\Sidebar
  */
+if (!$block->canDisplay()) {
+    return;
+}
 $categories = $block->getCategories();
-if(!$categories->count()){
+if (!$categories->count()) {
     return;
 }
 ?>
@@ -15,10 +18,11 @@ if(!$categories->count()){
 
     <?php
     // Loop through categories
-    foreach ( $categories as $category ) :
+    foreach ($categories as $category) :
         ?>
         <li class="level0<?php echo($block->isActive($category) ? ' active' : ''); ?>">
-            <a href="<?php echo $block->getCategoryUrl($category); ?>" title="<?php echo $category->getName(); ?>" class="<?php echo($block->isActive($category) ? ' active' : ''); ?>">
+            <a href="<?php echo $block->getCategoryUrl($category); ?>" title="<?php echo $category->getName(); ?>"
+               class="<?php echo($block->isActive($category) ? ' active' : ''); ?>">
                 <?php echo $category->getName(); ?>
             </a>
             <?php echo $block->getChildCategoryView($category); ?>
